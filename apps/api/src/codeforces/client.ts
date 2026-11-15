@@ -19,7 +19,9 @@ async function waitForRateLimit(): Promise<void> {
   }
 }
 
-async function request<T>(method: string): Promise<T> {
+type ResponseTiming = { serverTime: Date | null; receivedAt: Date };
+
+async function request<T>(method: string, onResponse?: (timing: ResponseTiming) => void): Promise<T> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const startedAt = Date.now();
     await waitForRateLimit();
@@ -44,6 +46,9 @@ async function request<T>(method: string): Promise<T> {
     const envelope = await response.json() as CfEnvelope<T>;
     if (envelope.status !== "OK") { console.warn(JSON.stringify({ level: "warn", integration: "codeforces", method, durationMs: Date.now() - startedAt, status: "FAILED" })); throw new Error(`Codeforces ${method} failed: ${envelope.comment ?? "unknown API error"}`); }
     console.info(JSON.stringify({ level: "info", integration: "codeforces", method, durationMs: Date.now() - startedAt, status: "OK" }));
+    const dateHeader = response.headers.get("date");
+    const serverTimestamp = dateHeader ? Date.parse(dateHeader) : Number.NaN;
+    onResponse?.({ serverTime: Number.isFinite(serverTimestamp) ? new Date(serverTimestamp) : null, receivedAt: new Date() });
     return envelope.result;
   }
   throw new Error(`Codeforces ${method} failed after retries`);
@@ -54,4 +59,9 @@ export const codeforces = {
   getProblemset: () => request<CfProblemsetResult>("problemset.problems"),
   getUser: async (handle: string) => (await request<CfUser[]>(`user.info?handles=${encodeURIComponent(handle)}`))[0],
   getUserStatus: (handle: string, from = 1, count = 100) => request<CfSubmission[]>(`user.status?handle=${encodeURIComponent(handle)}&from=${from}&count=${count}`),
+  getUserStatusWithTiming: async (handle: string, from = 1, count = 100) => {
+    let timing: ResponseTiming = { serverTime: null, receivedAt: new Date() };
+    const submissions = await request<CfSubmission[]>(`user.status?handle=${encodeURIComponent(handle)}&from=${from}&count=${count}`, (value) => { timing = value; });
+    return { submissions, timing };
+  },
 };

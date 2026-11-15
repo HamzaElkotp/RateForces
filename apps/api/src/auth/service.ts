@@ -18,13 +18,15 @@ export async function startVerification(rawHandle: string) {
   if (!VERIFICATION_CONTEST_ID || !VERIFICATION_PROBLEM_INDEX) throw Object.assign(new Error("Verification is not configured yet."), { status: 503 });
   const user = await codeforces.getUser(handle);
   if (!user) throw Object.assign(new Error("Codeforces handle was not found."), { status: 404 });
-  const recent = await codeforces.getUserStatus(user.handle, 1, 1);
+  const { submissions: recent, timing } = await codeforces.getUserStatusWithTiming(user.handle, 1, 1);
   const now = new Date();
+  const codeforcesTimeOffsetMs = timing.serverTime ? timing.serverTime.getTime() - timing.receivedAt.getTime() : 0;
   const challenge = await prisma.verificationChallenge.create({ data: {
     codeforcesHandle: user.handle,
     baselineSubmissionId: recent[0]?.id ?? 0,
     targetContestId: VERIFICATION_CONTEST_ID,
     targetProblemIndex: VERIFICATION_PROBLEM_INDEX,
+    codeforcesTimeOffsetMs,
     issuedAt: now,
     expiresAt: new Date(now.getTime() + CHALLENGE_TTL_MS),
   } });

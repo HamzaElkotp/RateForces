@@ -83,6 +83,7 @@ model VerificationChallenge {
   baselineSubmissionId Int  @map("baseline_submission_id")
   targetContestId Int      @map("target_contest_id")
   targetProblemIndex String @map("target_problem_index")
+  codeforcesTimeOffsetMs Int @default(0) @map("codeforces_time_offset_ms")
   status ChallengeStatus @default(PENDING)
   sessionIssuedAt DateTime? @map("session_issued_at") @db.Timestamptz(3)
   issuedAt       DateTime  @map("issued_at") @db.Timestamptz(3)

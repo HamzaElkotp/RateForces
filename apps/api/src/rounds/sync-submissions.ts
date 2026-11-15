@@ -1,6 +1,7 @@
 import { prisma } from "../db.js";
 import { codeforces } from "../codeforces/client.js";
 import { finalizeExpiredRounds } from "./lifecycle.js";
+import { isSubmissionInRoundWindow } from "./submission-window.js";
 
 const RECONCILE_MS = 30 * 60 * 1000;
 
@@ -13,7 +14,7 @@ async function applySubmission(ownerId: string, submission: Awaited<ReturnType<t
   const submittedAt = new Date(submission.creationTimeSeconds * 1000);
   const finalVerdict = submission.verdict && !["TESTING", "SUBMITTED"].includes(submission.verdict) ? submission.verdict : null;
   for (const round of rounds) {
-    if (!round.startedAt || !round.endsAt || submittedAt < round.startedAt || submittedAt > round.endsAt) continue;
+    if (!round.startedAt || !round.endsAt || !isSubmissionInRoundWindow(submittedAt, round.startedAt, round.endsAt)) continue;
     const problem = round.problems[0];
     if (!problem) continue;
     const url = `https://codeforces.com/contest/${submission.problem.contestId}/submission/${submission.id}`;

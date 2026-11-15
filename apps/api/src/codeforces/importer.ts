@@ -4,10 +4,7 @@ import { prisma } from "../db.js";
 import { codeforces } from "./client.js";
 import { normalizeProblemset } from "./normalize.js";
 
-export async function importProblemset(): Promise<{ contests: number; problems: number }> {
-  const [contests, result] = await Promise.all([codeforces.listContests(), codeforces.getProblemset()]);
-  const normalized = normalizeProblemset(result.problems, result.problemStatistics, contests);
-  const batchSize = 100;
+export async function writeNormalizedProblemset(normalized: ReturnType<typeof normalizeProblemset>, batchSize = 100): Promise<void> {
   await prisma.$transaction(async (tx) => {
     for (let offset = 0; offset < normalized.length; offset += batchSize) {
       const batch = normalized.slice(offset, offset + batchSize);
@@ -46,5 +43,11 @@ export async function importProblemset(): Promise<{ contests: number; problems: 
       }
     }
   }, { maxWait: 15_000, timeout: 300_000 });
+}
+
+export async function importProblemset(): Promise<{ contests: number; problems: number }> {
+  const [contests, result] = await Promise.all([codeforces.listContests(), codeforces.getProblemset()]);
+  const normalized = normalizeProblemset(result.problems, result.problemStatistics, contests);
+  await writeNormalizedProblemset(normalized);
   return { contests: contests.length, problems: normalized.length };
 }

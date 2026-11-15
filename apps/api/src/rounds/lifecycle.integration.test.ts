@@ -63,6 +63,15 @@ describe("round lifecycle (PostgreSQL integration)", () => {
     await assert.rejects(() => startRound(round.id, ownerId), hasStatus(409));
   });
 
+  it("serializes concurrent start requests so only one transition succeeds", async () => {
+    const { round } = await createRound();
+    const results = await Promise.allSettled([startRound(round.id, ownerId), startRound(round.id, ownerId)]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    const rejected = results.find((result) => result.status === "rejected");
+    assert.ok(rejected && rejected.status === "rejected" && hasStatus(409)(rejected.reason));
+    assert.equal((await prisma.round.findUniqueOrThrow({ where: { id: round.id } })).status, "RUNNING");
+  });
+
   it("cancels lobby rounds and refuses to cancel a running round", async () => {
     const { round: lobby } = await createRound();
     assert.deepEqual(await cancelLobbyRound(lobby.id, ownerId), { id: lobby.id, status: "CANCELLED" });

@@ -9,6 +9,7 @@ describe("round submission sync (PostgreSQL integration)", () => {
   let ownerId: string;
   let problemId: string;
   let contestId: number;
+  const extraOwnerIds: string[] = [];
 
   before(async () => {
     const owner = await prisma.owner.create({ data: { codeforcesHandle: `tests_${randomUUID().replaceAll("-", "").slice(0, 15)}`, verifiedAt: new Date() } });
@@ -20,15 +21,17 @@ describe("round submission sync (PostgreSQL integration)", () => {
 
   after(async () => {
     if (ownerId) await prisma.round.deleteMany({ where: { ownerId } });
+    if (extraOwnerIds.length) await prisma.round.deleteMany({ where: { ownerId: { in: extraOwnerIds } } });
     if (ownerId) await prisma.owner.deleteMany({ where: { id: ownerId } });
+    if (extraOwnerIds.length) await prisma.owner.deleteMany({ where: { id: { in: extraOwnerIds } } });
     if (problemId) await prisma.problem.deleteMany({ where: { id: problemId } });
     await prisma.$disconnect();
   });
 
-  async function createRound(status: "RUNNING" | "COMPLETED", startedAt: Date, endsAt: Date) {
+  async function createRound(status: "RUNNING" | "COMPLETED", startedAt: Date, endsAt: Date, roundOwnerId = ownerId) {
     const round = await prisma.round.create({
       data: {
-        ownerId,
+        ownerId: roundOwnerId,
         status,
         targetRating: 800,
         yearMode: "RANDOM",
@@ -101,5 +104,23 @@ describe("round submission sync (PostgreSQL integration)", () => {
     assert.equal(saved.attemptCount, 1);
     assert.equal(saved.attempts.length, 1);
     assert.equal((await prisma.round.findUniqueOrThrow({ where: { id: round.id } })).status, "COMPLETED");
+  });
+
+  it("syncs two active handles independently when their polls run concurrently", async () => {
+    const extraOwner = await prisma.owner.create({ data: { codeforcesHandle: `tests_${randomUUID().replaceAll("-", "").slice(0, 15)}`, verifiedAt: new Date() } });
+    extraOwnerIds.push(extraOwner.id);
+    const now = Date.now();
+    const startedAt = new Date(Math.floor((now - 60_000) / 1000) * 1000);
+    const endsAt = new Date(Math.ceil((now + 5 * 60_000) / 1000) * 1000);
+    const first = await createRound("RUNNING", startedAt, endsAt, ownerId);
+    const second = await createRound("RUNNING", startedAt, endsAt, extraOwner.id);
+
+    await Promise.all([
+      applySubmission(ownerId, submission(9301, new Date(startedAt.getTime() + 30_000), "WRONG_ANSWER")),
+      applySubmission(extraOwner.id, submission(9302, new Date(startedAt.getTime() + 40_000), "WRONG_ANSWER")),
+    ]);
+
+    assert.deepEqual(await prisma.roundAttempt.findMany({ where: { roundProblemId: first.problem.id }, select: { submissionId: true } }), [{ submissionId: 9301 }]);
+    assert.deepEqual(await prisma.roundAttempt.findMany({ where: { roundProblemId: second.problem.id }, select: { submissionId: true } }), [{ submissionId: 9302 }]);
   });
 });

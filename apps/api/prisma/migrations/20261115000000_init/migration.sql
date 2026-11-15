@@ -171,6 +171,24 @@ CREATE TABLE "round_attempts" (
     CONSTRAINT "round_attempts_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "worker_state" (
+    "worker_name" TEXT NOT NULL,
+    "last_seen_at" TIMESTAMPTZ(3) NOT NULL,
+    "last_job" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'OK',
+
+    CONSTRAINT "worker_state_pkey" PRIMARY KEY ("worker_name")
+);
+
+-- CreateTable
+CREATE TABLE "external_rate_limits" (
+    "key" TEXT NOT NULL,
+    "last_started_at" TIMESTAMPTZ(3) NOT NULL,
+
+    CONSTRAINT "external_rate_limits_pkey" PRIMARY KEY ("key")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "owners_codeforces_handle_key" ON "owners"("codeforces_handle");
 

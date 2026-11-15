@@ -220,3 +220,19 @@ model RoundAttempt {
   @@index([roundProblemId, submittedAt])
   @@map("round_attempts")
 }
+
+model WorkerState {
+  workerName String   @id @map("worker_name")
+  lastSeenAt DateTime @map("last_seen_at") @db.Timestamptz(3)
+  lastJob    String?  @map("last_job")
+  status     String   @default("OK")
+
+  @@map("worker_state")
+}
+
+model ExternalRateLimit {
+  key           String   @id
+  lastStartedAt DateTime @map("last_started_at") @db.Timestamptz(3)
+
+  @@map("external_rate_limits")
+}

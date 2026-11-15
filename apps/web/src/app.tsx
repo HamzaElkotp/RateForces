@@ -2,10 +2,14 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, Route, Routes, useNavigate, useParams } from "react-router-dom";
 
-function HomePage() {
+function ThemeControl({ mode, onChange }: { mode: string; onChange: (value: string) => void }) {
+  return <label className="theme-control"><span className="sr-only">Color theme</span><select aria-label="Color theme" value={mode} onChange={(event) => onChange(event.target.value)}><option value="system">System theme</option><option value="light">Light theme</option><option value="dark">Dark theme</option></select></label>;
+}
+
+function HomePage({ theme, setTheme }: { theme: string; setTheme: (value: string) => void }) {
   return (
     <main className="page-shell">
-      <header className="topbar"><Link className="brand" to="/">rateforces<span>.</span></Link><span className="status"><i /> Codeforces practice, on your terms</span></header>
+      <header className="topbar"><Link className="brand" to="/">rateforces<span>.</span></Link><span className="status"><i /> Codeforces practice, on your terms</span><ThemeControl mode={theme} onChange={setTheme} /></header>
       <section className="hero">
         <div className="eyebrow"><span>01</span> FOCUSED PRACTICE</div>
         <h1>Make every<br /><em>round count.</em></h1>
@@ -18,7 +22,7 @@ function HomePage() {
   );
 }
 
-function LinkAccountPage() {
+function LinkAccountPage({ theme, setTheme }: { theme: string; setTheme: (value: string) => void }) {
   const [handle, setHandle] = useState("");
   const [challenge, setChallenge] = useState<{ challengeId: string; handle: string; targetContestId: number; targetProblemIndex: string; expiresAt: string } | null>(null);
   const [message, setMessage] = useState("");
@@ -49,20 +53,20 @@ function LinkAccountPage() {
     const timer = window.setInterval(() => void poll(), 5000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [challenge, navigate]);
-  return <main className="simple-page"><Link className="brand" to="/">rateforces<span>.</span></Link><p className="eyebrow">ACCOUNT LINKING</p><h1>Connect your<br /><em>Codeforces handle.</em></h1>
+  return <main className="simple-page"><div className="simple-top"><Link className="brand" to="/">rateforces<span>.</span></Link><ThemeControl mode={theme} onChange={setTheme} /></div><p className="eyebrow">ACCOUNT LINKING</p><h1>Connect your<br /><em>Codeforces handle.</em></h1>
     {!challenge && <form className="link-form" onSubmit={submit}><label htmlFor="handle">Codeforces handle</label><input id="handle" autoComplete="username" value={handle} onChange={(event) => setHandle(event.target.value)} minLength={3} maxLength={24} required placeholder="tourist" /><button className="primary-button" disabled={busy}>{busy ? "Checking handle…" : "Continue"}<span aria-hidden="true">↗</span></button></form>}
     {challenge && <section className="challenge-card"><strong>Submit a Compilation error</strong><p>Open <a href={`https://codeforces.com/problemset/problem/${challenge.targetContestId}/${challenge.targetProblemIndex}`} target="_blank" rel="noreferrer">{challenge.targetContestId}{challenge.targetProblemIndex}</a> on Codeforces and submit code that produces a CE. Keep this page open; it checks automatically.</p><small>Challenge expires {new Date(challenge.expiresAt).toLocaleTimeString()}.</small></section>}
     {message && <p className="form-message" role="status">{message}</p>}<Link className="text-link" to="/">← Back to home</Link></main>;
 }
 
-function DashboardPage() {
+function DashboardPage({ theme, setTheme }: { theme: string; setTheme: (value: string) => void }) {
   const [profile, setProfile] = useState<{ codeforcesHandle: string; rating: number | null; rank: string | null; historySyncComplete: boolean; historySyncCursor: number } | null>(null);
   const [rounds, setRounds] = useState<{ id: string; status: string; targetRating: number; createdAt: string; problems: { id: string; name: string }[] }[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   useEffect(() => { fetch("/api/v1/me", { credentials: "include" }).then(async (response) => { if (!response.ok) { navigate("/link-account"); return null; } return response.json(); }).then(async (payload) => { if (payload?.data) { setProfile(payload.data); const history = await fetch("/api/v1/rounds", { credentials: "include" }); if (history.ok) setRounds((await history.json()).data); } }).finally(() => setLoading(false)); }, [navigate]);
   if (loading) return <main className="simple-page"><p className="intro">Loading your account…</p></main>;
-  return <main className="simple-page"><Link className="brand" to="/">rateforces<span>.</span></Link><p className="eyebrow">YOUR DASHBOARD</p><h1>Welcome,<br /><em>{profile?.codeforcesHandle ?? "solver"}.</em></h1><p className="intro">{profile?.rank ?? "Unrated"}{profile?.rating ? ` · ${profile.rating}` : ""}</p>{profile && !profile.historySyncComplete && <p className="sync-state" role="status">Importing your Codeforces history · {Math.max(0, profile.historySyncCursor - 1).toLocaleString()} submissions checked</p>}{profile?.historySyncComplete && <p className="sync-state" role="status">Codeforces history sync complete.</p>}<Link className="primary-button" to="/rounds/new">Create a practice round <span aria-hidden="true">↗</span></Link><section className="round-history"><p className="eyebrow">ROUND HISTORY</p>{rounds.length ? rounds.map((round) => <Link key={round.id} className="round-row" to={`/rounds/${round.id}`}><span>{round.targetRating} rating · {round.problems.length} problems</span><small>{round.status}</small></Link>) : <p className="intro">No rounds yet. Your first practice round starts here.</p>}</section></main>;
+  return <main className="simple-page"><div className="simple-top"><Link className="brand" to="/">rateforces<span>.</span></Link><ThemeControl mode={theme} onChange={setTheme} /></div><p className="eyebrow">YOUR DASHBOARD</p><h1>Welcome,<br /><em>{profile?.codeforcesHandle ?? "solver"}.</em></h1><p className="intro">{profile?.rank ?? "Unrated"}{profile?.rating ? ` · ${profile.rating}` : ""}</p>{profile && !profile.historySyncComplete && <p className="sync-state" role="status">Importing your Codeforces history · {Math.max(0, profile.historySyncCursor - 1).toLocaleString()} submissions checked</p>}{profile?.historySyncComplete && <p className="sync-state" role="status">Codeforces history sync complete.</p>}<Link className="primary-button" to="/rounds/new">Create a practice round <span aria-hidden="true">↗</span></Link><section className="round-history"><p className="eyebrow">ROUND HISTORY</p>{rounds.length ? rounds.map((round) => <Link key={round.id} className="round-row" to={`/rounds/${round.id}`}><span>{round.targetRating} rating · {round.problems.length} problems</span><small>{round.status}</small></Link>) : <p className="intro">No rounds yet. Your first practice round starts here.</p>}</section></main>;
 }
 
 type FilterOptions = { years: number[]; ratings: number[]; tags: string[] };
@@ -130,5 +134,12 @@ function RoundPage() {
 }
 
 export default function App() {
-  return <Routes><Route path="/" element={<HomePage />} /><Route path="/link-account" element={<LinkAccountPage />} /><Route path="/dashboard" element={<DashboardPage />} /><Route path="/rounds/new" element={<CreateRoundPage />} /><Route path="/rounds/:roundId" element={<RoundPage />} /><Route path="*" element={<HomePage />} /></Routes>;
+  const [theme, setTheme] = useState(() => localStorage.getItem("rateforces-theme") ?? "system");
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => { document.documentElement.dataset.theme = theme === "system" ? (media.matches ? "dark" : "light") : theme; };
+    apply(); media.addEventListener("change", apply); localStorage.setItem("rateforces-theme", theme);
+    return () => media.removeEventListener("change", apply);
+  }, [theme]);
+  return <Routes><Route path="/" element={<HomePage theme={theme} setTheme={setTheme} />} /><Route path="/link-account" element={<LinkAccountPage theme={theme} setTheme={setTheme} />} /><Route path="/dashboard" element={<DashboardPage theme={theme} setTheme={setTheme} />} /><Route path="/rounds/new" element={<CreateRoundPage />} /><Route path="/rounds/:roundId" element={<RoundPage />} /><Route path="*" element={<HomePage theme={theme} setTheme={setTheme} />} /></Routes>;
 }

@@ -1,5 +1,6 @@
 import cors from "cors";
 import express from "express";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { config } from "./config.js";
 import { prisma } from "./db.js";
@@ -12,6 +13,7 @@ import { getRoundResults } from "./rounds/results.js";
 const app = express();
 app.disable("x-powered-by");
 app.use(cors({ origin: config.WEB_ORIGIN, credentials: true }));
+app.use((_request, response, next) => { response.locals.requestId = randomUUID(); response.setHeader("X-Request-Id", response.locals.requestId); next(); });
 app.use(express.json({ limit: "32kb" }));
 
 const verificationStarts = new Map<string, { count: number; resetAt: number }>();
@@ -24,8 +26,20 @@ function limitVerificationStarts(ip: string): boolean {
   return true;
 }
 
-app.get("/api/health", (_request, response) => {
+app.get("/api/health/live", (_request, response) => {
   response.json({ status: "ok", service: "rateforces-api", timestamp: new Date().toISOString() });
+});
+
+app.get("/api/health", async (_request, response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    const worker = await prisma.workerState.findUnique({ where: { workerName: "main" } });
+    const workerHealthy = !!worker && Date.now() - worker.lastSeenAt.getTime() < 90_000;
+    response.status(workerHealthy ? 200 : 503).json({ status: workerHealthy ? "ok" : "degraded", service: "rateforces-api", database: "ok", worker: worker ? { status: workerHealthy ? "ok" : "stale", lastSeenAt: worker.lastSeenAt.toISOString(), lastJob: worker.lastJob } : { status: "missing" }, timestamp: new Date().toISOString() });
+  } catch (error) {
+    console.error(JSON.stringify({ level: "error", message: "Readiness check failed", requestId: response.locals.requestId, errorClass: error instanceof Error ? error.name : "UnknownError" }));
+    response.status(503).json({ status: "unavailable", service: "rateforces-api", database: "unavailable", worker: { status: "unknown" }, timestamp: new Date().toISOString() });
+  }
 });
 
 app.post("/api/v1/auth/verification", async (request, response, next) => {
@@ -175,7 +189,7 @@ app.use((_request, response) => {
 });
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-  console.error("API request failed:", error);
+  console.error(JSON.stringify({ level: "error", message: "API request failed", requestId: response.locals.requestId, errorClass: error instanceof Error ? error.name : "UnknownError" }));
   const status = typeof error === "object" && error !== null && "status" in error && typeof error.status === "number" ? error.status : 500;
   const message = status < 500 && error instanceof Error ? error.message : "An unexpected error occurred";
   response.status(status).json({ error: { code: status === 500 ? "INTERNAL_ERROR" : "REQUEST_FAILED", message } });

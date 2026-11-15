@@ -4,7 +4,7 @@ import { codeforces } from "../codeforces/client.js";
 const PAGE_SIZE = 1000;
 
 try {
-  const owners = await prisma.owner.findMany({ where: { OR: [{ syncCheckpoint: null }, { syncCheckpoint: { is: { historyImportComplete: false } } }] }, take: 10, orderBy: { createdAt: "asc" } });
+  const owners = await prisma.owner.findMany({ take: 10, orderBy: { createdAt: "asc" }, include: { syncCheckpoint: true } });
   for (const owner of owners) {
     try {
       const checkpoint = await prisma.userSyncCheckpoint.upsert({
@@ -12,9 +12,10 @@ try {
         create: { ownerId: owner.id, historyImportStartedAt: new Date() },
         update: {},
       });
-      if (checkpoint.historyImportComplete) continue;
-      const submissions = await codeforces.getUserStatus(owner.codeforcesHandle, checkpoint.historyImportCursor, PAGE_SIZE);
+      const from = checkpoint.historyImportComplete ? 1 : checkpoint.historyImportCursor;
+      const submissions = await codeforces.getUserStatus(owner.codeforcesHandle, from, PAGE_SIZE);
       for (const submission of submissions) {
+        if (checkpoint.historyImportComplete && submission.id <= (checkpoint.lastSubmissionId ?? 0)) continue;
         if (submission.verdict !== "OK" || submission.problem.contestId === undefined) continue;
         const problem = await prisma.problem.upsert({
           where: { contestId_problemIndex: { contestId: submission.problem.contestId, problemIndex: submission.problem.index } },
@@ -34,13 +35,13 @@ try {
           update: { acceptedAt, submissionId: submission.id },
         });
       }
-      const finished = submissions.length < PAGE_SIZE;
+      const finished = checkpoint.historyImportComplete || submissions.length < PAGE_SIZE;
       await prisma.userSyncCheckpoint.update({
         where: { ownerId: owner.id },
         data: {
-          historyImportCursor: checkpoint.historyImportCursor + submissions.length,
+          historyImportCursor: checkpoint.historyImportComplete ? checkpoint.historyImportCursor : checkpoint.historyImportCursor + submissions.length,
           historyImportComplete: finished,
-          ...(submissions[0] ? { lastSubmissionId: submissions[0].id } : {}),
+          ...(!checkpoint.historyImportComplete && checkpoint.historyImportCursor === 1 && submissions[0] ? { lastSubmissionId: submissions[0].id } : {}),
           lastSyncedAt: new Date(),
         },
       });

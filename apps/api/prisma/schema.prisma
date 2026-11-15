@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum RoundStatus {
@@ -23,10 +24,19 @@ enum TagMatchMode {
   ANY
 }
 
+enum ChallengeStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  CANCELLED
+}
+
 model Owner {
   id                  String                @id @default(uuid()) @db.Uuid
   codeforcesHandle    String                @unique @map("codeforces_handle")
   verifiedAt          DateTime              @map("verified_at") @db.Timestamptz(3)
+  rating              Int?
+  rank                String?
   sessions            OwnerSession[]
   rounds              Round[]
   solvedProblems      UserSolvedProblem[]
@@ -43,6 +53,7 @@ model OwnerSession {
   tokenHash String    @unique @map("token_hash")
   expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   owner     Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
@@ -55,6 +66,10 @@ model VerificationChallenge {
   ownerId        String?   @map("owner_id") @db.Uuid
   codeforcesHandle String  @map("codeforces_handle")
   baselineSubmissionId Int  @map("baseline_submission_id")
+  targetContestId Int      @map("target_contest_id")
+  targetProblemIndex String @map("target_problem_index")
+  status ChallengeStatus @default(PENDING)
+  sessionIssuedAt DateTime? @map("session_issued_at") @db.Timestamptz(3)
   issuedAt       DateTime  @map("issued_at") @db.Timestamptz(3)
   expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
   consumedAt     DateTime? @map("consumed_at") @db.Timestamptz(3)

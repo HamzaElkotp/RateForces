@@ -1,5 +1,5 @@
 import { config } from "../config.js";
-import type { CfContest, CfEnvelope, CfProblemsetResult } from "./types.js";
+import type { CfContest, CfEnvelope, CfProblemsetResult, CfSubmission, CfUser } from "./types.js";
 
 let lastRequestAt = 0;
 let queue: Promise<void> = Promise.resolve();
@@ -30,4 +30,6 @@ async function request<T>(method: string): Promise<T> {
 export const codeforces = {
   listContests: () => request<CfContest[]>("contest.list?gym=false"),
   getProblemset: () => request<CfProblemsetResult>("problemset.problems"),
+  getUser: async (handle: string) => (await request<CfUser[]>(`user.info?handles=${encodeURIComponent(handle)}`))[0],
+  getUserStatus: (handle: string, from = 1, count = 100) => request<CfSubmission[]>(`user.status?handle=${encodeURIComponent(handle)}&from=${from}&count=${count}`),
 };

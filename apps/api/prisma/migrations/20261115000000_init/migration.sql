@@ -10,11 +10,16 @@ CREATE TYPE "YearMode" AS ENUM ('SELECTED', 'RANDOM');
 -- CreateEnum
 CREATE TYPE "TagMatchMode" AS ENUM ('ALL', 'ANY');
 
+-- CreateEnum
+CREATE TYPE "ChallengeStatus" AS ENUM ('PENDING', 'VERIFIED', 'EXPIRED', 'CANCELLED');
+
 -- CreateTable
 CREATE TABLE "owners" (
     "id" UUID NOT NULL,
     "codeforces_handle" TEXT NOT NULL,
     "verified_at" TIMESTAMPTZ(3) NOT NULL,
+    "rating" INTEGER,
+    "rank" TEXT,
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "owners_pkey" PRIMARY KEY ("id")
@@ -27,6 +32,7 @@ CREATE TABLE "owner_sessions" (
     "token_hash" TEXT NOT NULL,
     "expires_at" TIMESTAMPTZ(3) NOT NULL,
     "revoked_at" TIMESTAMPTZ(3),
+    "last_used_at" TIMESTAMPTZ(3),
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "owner_sessions_pkey" PRIMARY KEY ("id")
@@ -38,6 +44,10 @@ CREATE TABLE "verification_challenges" (
     "owner_id" UUID,
     "codeforces_handle" TEXT NOT NULL,
     "baseline_submission_id" INTEGER NOT NULL,
+    "target_contest_id" INTEGER NOT NULL,
+    "target_problem_index" TEXT NOT NULL,
+    "status" "ChallengeStatus" NOT NULL DEFAULT 'PENDING',
+    "session_issued_at" TIMESTAMPTZ(3),
     "issued_at" TIMESTAMPTZ(3) NOT NULL,
     "expires_at" TIMESTAMPTZ(3) NOT NULL,
     "consumed_at" TIMESTAMPTZ(3),

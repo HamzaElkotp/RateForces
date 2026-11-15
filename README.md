@@ -6,18 +6,23 @@ RateForces is a client-rendered Codeforces practice-round companion. The browser
 
 Phase 0 establishes the React/Vite SPA, Express API, separate worker process, PostgreSQL/Prisma data model, environment validation, shared workspace scripts, and local database service. Later roadmap phases add Codeforces integration and product workflows in order.
 
-## Requirements
+## Database setup (Neon)
 
-- Node.js 20 or newer and npm 10 or newer
-- Docker with Compose (or a local PostgreSQL 15+ instance)
+Create a PostgreSQL project in Neon, then copy both connection strings from its **Connect** dialog into `.env`:
+
+- `DATABASE_URL`: pooled hostname (contains `-pooler`) for API and worker connections.
+- `DATABASE_URL_UNPOOLED`: direct hostname for Prisma migrations.
+
+The schema uses Prisma 6, which supports `directUrl` for migration commands. Neon documents separate pooled and direct URLs for application and schema operations in its [Prisma connection guide](https://neon.com/docs/guides/prisma).
+
+Node.js 20 or newer and npm 10 or newer are required. Docker Compose remains available as an optional local PostgreSQL alternative.
 
 ## Local development
 
-1. Copy `.env.example` to `.env` and set a random `SESSION_SECRET` of at least 32 characters.
-2. Start PostgreSQL with `docker compose up -d postgres`.
-3. Install dependencies with `npm install`.
-4. Generate the Prisma client and apply the development migration: `npm run db:generate`, then `npm run db:migrate`.
-5. Start API, web app, and worker together: `npm run dev`.
+1. Copy `.env.example` to `.env`, fill in both Neon URLs, and set a random `SESSION_SECRET` of at least 32 characters.
+2. Install dependencies with `npm install`.
+3. Generate the Prisma client and apply migrations: `npm run db:generate`, then `npm run db:migrate`.
+4. Start API, web app, and worker together: `npm run dev`.
 
 The web app runs at <http://localhost:5173>, and the API health endpoint is <http://localhost:3001/api/health>. Vite proxies `/api` requests to the API.
 

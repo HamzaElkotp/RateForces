@@ -25,6 +25,19 @@ export interface CfProblemsetResult {
   problemStatistics: CfProblemStatistic[];
 }
 
+export interface CfUser {
+  handle: string;
+  rating?: number;
+  rank?: string;
+}
+
+export interface CfSubmission {
+  id: number;
+  creationTimeSeconds: number;
+  problem: { contestId?: number; index: string };
+  verdict?: string;
+}
+
 export interface NormalizedProblem {
   contestId: number;
   problemIndex: string;

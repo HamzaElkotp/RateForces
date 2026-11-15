@@ -21,4 +21,5 @@ if (process.env.RUN_DB_INTEGRATION === "true") {
   await import("../src/rounds/lifecycle.integration.test.ts");
   await import("../src/auth/verification.integration.test.ts");
   await import("../src/auth/history-sync.integration.test.ts");
+  await import("../src/rounds/submission-sync.integration.test.ts");
 }

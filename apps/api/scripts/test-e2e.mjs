@@ -107,6 +107,30 @@ async function runScript(script, overrides = {}) {
     );
 }
 
+async function assertNoHorizontalOverflow(page, screen) {
+  const overflow = await page.evaluate(() => ({
+    width: document.documentElement.scrollWidth,
+    elements: [...document.querySelectorAll("body *")]
+      .map((element) => {
+        const rect = element.getBoundingClientRect();
+        return {
+          tag: element.tagName,
+          className: element.className,
+          left: rect.left,
+          right: rect.right,
+        };
+      })
+      .filter(
+        (element) => element.left < 0 || element.right > window.innerWidth,
+      )
+      .slice(0, 8),
+  }));
+  if (overflow.width > 375)
+    throw new Error(
+      `The ${screen} screen is ${overflow.width}px wide at a 375px viewport: ${JSON.stringify(overflow.elements)}`,
+    );
+}
+
 try {
   const nonce = Date.now();
   handle = `RateForcesE2E${nonce.toString().slice(-6)}`;
@@ -203,6 +227,15 @@ try {
 
   browser = await chromium.launch({ channel: "msedge", headless: true });
   const page = await browser.newPage();
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(webOrigin);
+  await page.getByRole("link", { name: /Link Codeforces account/ }).waitFor();
+  await assertNoHorizontalOverflow(page, "home");
+  await page.getByLabel("Color theme").selectOption("dark");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.theme === "dark",
+  );
+  await page.getByLabel("Color theme").selectOption("system");
   await page.goto(`${webOrigin}/link-account`);
   await page.getByLabel("Codeforces handle").fill(handle);
   await page.getByRole("button", { name: "Continue" }).click();
@@ -223,6 +256,7 @@ try {
   });
   await page.waitForURL("**/dashboard", { timeout: 15_000 });
   await page.getByRole("heading", { name: new RegExp(handle) }).waitFor();
+  await assertNoHorizontalOverflow(page, "dashboard");
   const owner = await prisma.owner.findUniqueOrThrow({
     where: { codeforcesHandle: handle },
   });
@@ -230,14 +264,17 @@ try {
 
   await page.getByRole("link", { name: /Create a practice round/ }).click();
   await page.getByLabel("Exact problem rating").waitFor();
+  await assertNoHorizontalOverflow(page, "round builder");
   await page.getByLabel("Number of problems").fill("5");
   await page.getByLabel("Round duration (minutes)").fill("5");
   await page.getByRole("button", { name: "Preview availability" }).click();
   await page.getByText(/5 eligible/).waitFor();
   await page.getByRole("button", { name: "Create lobby" }).click();
   await page.getByText("LOBBY · 5 MINUTES").waitFor();
+  await assertNoHorizontalOverflow(page, "round lobby");
   await page.getByRole("button", { name: "Start round" }).click();
   await page.getByText("RUNNING · 5 MINUTES").waitFor();
+  await assertNoHorizontalOverflow(page, "running round");
   const selected = await prisma.roundProblem.findFirstOrThrow({
     where: { round: { ownerId }, orderIndex: 0 },
   });
@@ -263,7 +300,7 @@ try {
     .waitFor();
   await page.getByRole("link", { name: "accepted submission" }).waitFor();
   console.info(
-    "Browser E2E passed: verification, session cookie, round preview/create/start, work tracking, and accepted submission sync.",
+    "Browser E2E passed: mobile layout, theme switching, verification, session cookie, round preview/create/start, work tracking, and accepted submission sync.",
   );
 } finally {
   await browser?.close().catch(() => {});

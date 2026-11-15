@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "crawl:problemset": "tsx src/crawl-problemset.ts",
-    "auth:poll": "tsx src/auth/poll-challenges.ts"
+    "auth:poll": "tsx src/auth/poll-challenges.ts",
+    "auth:sync-history": "tsx src/auth/sync-history.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0",

@@ -88,6 +88,7 @@ CREATE TABLE "user_sync_checkpoints" (
     "owner_id" UUID NOT NULL,
     "last_submission_id" INTEGER,
     "history_import_complete" BOOLEAN NOT NULL DEFAULT false,
+    "history_import_cursor" INTEGER NOT NULL DEFAULT 1,
     "history_import_started_at" TIMESTAMPTZ(3),
     "last_synced_at" TIMESTAMPTZ(3),
 

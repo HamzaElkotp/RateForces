@@ -117,6 +117,7 @@ model UserSyncCheckpoint {
   ownerId                String    @id @map("owner_id") @db.Uuid
   lastSubmissionId       Int?      @map("last_submission_id")
   historyImportComplete  Boolean   @default(false) @map("history_import_complete")
+  historyImportCursor    Int       @default(1) @map("history_import_cursor")
   historyImportStartedAt DateTime? @map("history_import_started_at") @db.Timestamptz(3)
   lastSyncedAt           DateTime? @map("last_synced_at") @db.Timestamptz(3)
   owner                  Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)

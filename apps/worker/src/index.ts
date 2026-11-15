@@ -5,7 +5,7 @@ const WEEK = 7 * 24 * 60 * 60 * 1000;
 const CHALLENGE_POLL = 15 * 1000;
 let activeJob = false;
 
-function runApiJob(script: "auth:poll" | "crawl:problemset"): void {
+function runApiJob(script: "auth:poll" | "auth:sync-history" | "crawl:problemset"): void {
   if (activeJob) return;
   activeJob = true;
   console.info(`Starting scheduled ${script} job.`);
@@ -16,5 +16,6 @@ function runApiJob(script: "auth:poll" | "crawl:problemset"): void {
 
 runApiJob("auth:poll");
 setInterval(() => runApiJob("auth:poll"), CHALLENGE_POLL);
+setInterval(() => runApiJob("auth:sync-history"), 60 * 1000);
 setTimeout(() => runApiJob("crawl:problemset"), WEEK);
 console.info("RateForces worker started; challenge polling and weekly problemset refresh are scheduled.");

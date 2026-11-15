@@ -34,7 +34,7 @@ export interface CfUser {
 export interface CfSubmission {
   id: number;
   creationTimeSeconds: number;
-  problem: { contestId?: number; index: string };
+  problem: { contestId?: number; index: string; name?: string; rating?: number; tags?: string[] };
   verdict?: string;
 }
 

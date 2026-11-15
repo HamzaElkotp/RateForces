@@ -56,12 +56,12 @@ function LinkAccountPage() {
 }
 
 function DashboardPage() {
-  const [profile, setProfile] = useState<{ codeforcesHandle: string; rating: number | null; rank: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ codeforcesHandle: string; rating: number | null; rank: string | null; historySyncComplete: boolean; historySyncCursor: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   useEffect(() => { fetch("/api/v1/me", { credentials: "include" }).then(async (response) => { if (!response.ok) { navigate("/link-account"); return null; } return response.json(); }).then((payload) => { if (payload?.data) setProfile(payload.data); }).finally(() => setLoading(false)); }, [navigate]);
   if (loading) return <main className="simple-page"><p className="intro">Loading your account…</p></main>;
-  return <main className="simple-page"><Link className="brand" to="/">rateforces<span>.</span></Link><p className="eyebrow">YOUR DASHBOARD</p><h1>Welcome,<br /><em>{profile?.codeforcesHandle ?? "solver"}.</em></h1><p className="intro">{profile?.rank ?? "Unrated"}{profile?.rating ? ` · ${profile.rating}` : ""}</p><p className="intro">Your problemset and round history will appear here as the next roadmap phases are built.</p></main>;
+  return <main className="simple-page"><Link className="brand" to="/">rateforces<span>.</span></Link><p className="eyebrow">YOUR DASHBOARD</p><h1>Welcome,<br /><em>{profile?.codeforcesHandle ?? "solver"}.</em></h1><p className="intro">{profile?.rank ?? "Unrated"}{profile?.rating ? ` · ${profile.rating}` : ""}</p>{profile && !profile.historySyncComplete && <p className="sync-state" role="status">Importing your Codeforces history · {Math.max(0, profile.historySyncCursor - 1).toLocaleString()} submissions checked</p>}{profile?.historySyncComplete && <p className="sync-state" role="status">Codeforces history sync complete.</p>}<p className="intro">Your round history will appear here as the next roadmap phases are built.</p></main>;
 }
 
 export default function App() {

@@ -45,8 +45,11 @@ app.get("/api/v1/auth/verification/:challengeId", async (request, response, next
   } catch (error) { next(error); }
 });
 
-app.get("/api/v1/me", requireOwner, (request, response) => {
-  response.json({ data: request.owner, error: null });
+app.get("/api/v1/me", requireOwner, async (request, response, next) => {
+  try {
+    const checkpoint = await prisma.userSyncCheckpoint.findUnique({ where: { ownerId: request.owner!.id } });
+    response.json({ data: { ...request.owner, historySyncComplete: checkpoint?.historyImportComplete ?? false, historySyncCursor: checkpoint?.historyImportCursor ?? 1, lastSyncedAt: checkpoint?.lastSyncedAt?.toISOString() ?? null }, error: null });
+  } catch (error) { next(error); }
 });
 
 app.post("/api/v1/auth/logout", requireOwner, async (request, response, next) => {

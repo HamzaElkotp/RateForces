@@ -9,6 +9,7 @@ import { requireOwner } from "./auth/middleware.js";
 import { createRound, previewRound, roundConfigSchema } from "./rounds/selection.js";
 import { cancelLobbyRound, startRound, startWork, stopWork } from "./rounds/lifecycle.js";
 import { getRoundResults } from "./rounds/results.js";
+import { FixedWindowRateLimiter } from "./rate-limit.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -16,14 +17,15 @@ app.use(cors({ origin: config.WEB_ORIGIN, credentials: true }));
 app.use((_request, response, next) => { response.locals.requestId = randomUUID(); response.setHeader("X-Request-Id", response.locals.requestId); next(); });
 app.use(express.json({ limit: "32kb" }));
 
-const verificationStarts = new Map<string, { count: number; resetAt: number }>();
-function limitVerificationStarts(ip: string): boolean {
-  const now = Date.now();
-  const current = verificationStarts.get(ip);
-  if (!current || current.resetAt <= now) { verificationStarts.set(ip, { count: 1, resetAt: now + 60 * 60 * 1000 }); return true; }
-  if (current.count >= 5) return false;
-  current.count += 1;
-  return true;
+const verificationLimiter = new FixedWindowRateLimiter();
+const roundPreviewLimiter = new FixedWindowRateLimiter();
+const roundCreateLimiter = new FixedWindowRateLimiter();
+function consumeLimit(limiter: FixedWindowRateLimiter, key: string, limit: number, windowMs: number, response: express.Response, message: string): boolean {
+  const result = limiter.consume(key, limit, windowMs);
+  if (result.allowed) return true;
+  response.setHeader("Retry-After", String(Math.ceil(result.retryAfterMs / 1000)));
+  response.status(429).json({ error: { code: "RATE_LIMITED", message } });
+  return false;
 }
 
 app.get("/api/health/live", (_request, response) => {
@@ -45,7 +47,7 @@ app.get("/api/health", async (_request, response) => {
 app.post("/api/v1/auth/verification", async (request, response, next) => {
   const body = z.object({ handle: z.string().trim().min(3).max(24) }).safeParse(request.body);
   if (!body.success) { response.status(400).json({ error: { code: "INVALID_HANDLE", message: "Enter a valid Codeforces handle." } }); return; }
-  if (!limitVerificationStarts(request.ip ?? "unknown")) { response.status(429).json({ error: { code: "RATE_LIMITED", message: "Too many verification attempts. Try again later." } }); return; }
+  if (!consumeLimit(verificationLimiter, request.ip ?? "unknown", 5, 60 * 60 * 1000, response, "Too many verification attempts. Try again later.")) return;
   try { response.status(201).json({ data: await startVerification(body.data.handle), error: null }); } catch (error) { next(error); }
 });
 
@@ -88,12 +90,14 @@ function parseRoundQuery(query: express.Request["query"]) {
 }
 
 app.get("/api/v1/problemset/preview", requireOwner, async (request, response, next) => {
+  if (!consumeLimit(roundPreviewLimiter, request.owner!.id, 60, 60 * 1000, response, "Too many round previews. Wait a minute and try again.")) return;
   const parsed = parseRoundQuery(request.query);
   if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_CONFIG", message: parsed.error.issues[0]?.message ?? "Invalid round configuration" } }); return; }
   try { response.json({ data: await previewRound(request.owner!.id, parsed.data), error: null }); } catch (error) { next(error); }
 });
 
 app.post("/api/v1/rounds", requireOwner, async (request, response, next) => {
+  if (!consumeLimit(roundCreateLimiter, request.owner!.id, 10, 60 * 60 * 1000, response, "Too many rounds created. Try again later.")) return;
   const parsed = roundConfigSchema.safeParse(request.body);
   if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_CONFIG", message: parsed.error.issues[0]?.message ?? "Invalid round configuration" } }); return; }
   try {

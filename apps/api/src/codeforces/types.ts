@@ -11,7 +11,7 @@ export interface CfProblem {
   index: string;
   name: string;
   rating?: number;
-  tags: string[];
+  tags?: string[];
 }
 
 export interface CfProblemStatistic {

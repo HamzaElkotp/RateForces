@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { prisma } from "../db.js";
 import { codeforces } from "../codeforces/client.js";
+import { isVerificationProof } from "./verification-proof.js";
 
 const SESSION_COOKIE = "rateforces_session";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -39,10 +40,7 @@ export async function checkVerification(challengeId: string) {
     return { status: "EXPIRED" as const };
   }
   const submissions = await codeforces.getUserStatus(challenge.codeforcesHandle, 1, 100);
-  const proof = submissions.find((submission) => submission.id > challenge.baselineSubmissionId
-    && submission.problem.contestId === challenge.targetContestId
-    && submission.problem.index === challenge.targetProblemIndex
-    && submission.verdict === "COMPILATION_ERROR");
+  const proof = submissions.find((submission) => isVerificationProof(submission, challenge));
   if (!proof) return { status: "PENDING" as const };
 
   const profile = await codeforces.getUser(challenge.codeforcesHandle);

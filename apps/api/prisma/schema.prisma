@@ -73,6 +73,8 @@ model OwnerSession {
   owner     Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([ownerId, expiresAt])
+  @@index([expiresAt])
+  @@index([revokedAt])
   @@map("owner_sessions")
 }
 
@@ -93,6 +95,7 @@ model VerificationChallenge {
   owner          Owner?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([codeforcesHandle, expiresAt])
+  @@index([expiresAt])
   @@map("verification_challenges")
 }
 

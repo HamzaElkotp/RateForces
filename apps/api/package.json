@@ -13,6 +13,7 @@
     "db:deploy": "node scripts/prisma.mjs migrate deploy",
     "crawl:problemset": "tsx src/crawl-problemset.ts",
     "auth:poll": "tsx src/auth/poll-challenges.ts",
+    "auth:cleanup": "tsx src/auth/cleanup.ts",
     "auth:sync-history": "tsx src/auth/sync-history.ts",
     "rounds:sync": "tsx src/rounds/sync-submissions.ts",
     "worker:heartbeat": "tsx src/worker-heartbeat.ts"

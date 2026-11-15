@@ -30,7 +30,7 @@ The web app runs at <http://localhost:5173>, and the API health endpoint is <htt
 
 For a containerized production deployment, configure `.env`, apply committed migrations with `npm run db:deploy`, then build and start the API, worker, and web containers using `docker compose -f docker-compose.app.yml up --build -d`. The web container serves the SPA and proxies `/api` to Express. The API and worker are separate processes. Keep database credentials server-side and use a Neon pooled URL for runtime plus its direct URL for migrations.
 
-Use Neon branch backups/restore points for database recovery. Keep at least one separate production branch and test a restore procedure before launch. The readiness endpoint `/api/health` checks database connectivity and the worker heartbeat; `/api/health/live` is the API liveness check.
+Use Neon branch backups/restore points for database recovery. Keep at least one separate production branch and test a restore procedure before launch. The readiness endpoint `/api/health` checks database connectivity and the worker heartbeat; `/api/health/live` is the API liveness check. The worker removes verification challenges one day after expiry, expired sessions immediately, and revoked sessions after one day.
 
 ## Environment variables
 

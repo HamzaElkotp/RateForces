@@ -38,12 +38,13 @@ async function getEligibleProblems(ownerId: string, input: RoundConfig) {
   });
 }
 
-function shuffle<T>(items: T[]): T[] {
-  for (let index = items.length - 1; index > 0; index -= 1) {
+export function selectDistinctProblems<T>(items: T[], count: number): T[] {
+  const shuffled = [...items];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
     const target = randomInt(index + 1);
-    [items[index], items[target]] = [items[target]!, items[index]!];
+    [shuffled[index], shuffled[target]] = [shuffled[target]!, shuffled[index]!];
   }
-  return items;
+  return shuffled.slice(0, count);
 }
 
 export async function previewRound(ownerId: string, input: RoundConfig) {
@@ -54,7 +55,7 @@ export async function previewRound(ownerId: string, input: RoundConfig) {
 export async function createRound(ownerId: string, input: RoundConfig) {
   const candidates = await getEligibleProblems(ownerId, input);
   if (candidates.length < input.problemCount) throw Object.assign(new Error(`Only ${candidates.length} eligible problems match these filters; ${input.problemCount} requested.`), { status: 422 });
-  const selected = shuffle(candidates).slice(0, input.problemCount);
+  const selected = selectDistinctProblems(candidates, input.problemCount);
   return prisma.$transaction(async (tx) => tx.round.create({
     data: {
       ownerId,

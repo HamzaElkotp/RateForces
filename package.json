@@ -2,7 +2,10 @@
   "name": "rateforces",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently -k -n api,web,worker -c blue,green,magenta \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:worker\"",
     "dev:api": "npm --workspace @rateforces/api run dev",
@@ -12,6 +15,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm --workspace @rateforces/api run test",
     "test:integration": "npm --workspace @rateforces/api run test:integration",
+    "test:e2e": "npm --workspace @rateforces/api run test:e2e",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "npm --workspace @rateforces/api run db:generate",
@@ -20,6 +24,7 @@
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
+    "playwright": "^1.65.1",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2"
   }

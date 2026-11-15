@@ -17,4 +17,7 @@ await import("../src/rounds/results-calculation.test.ts");
 await import("../src/rounds/selection.test.ts");
 await import("../src/rounds/submission-window.test.ts");
 await import("../src/rate-limit.test.ts");
-if (process.env.RUN_DB_INTEGRATION === "true") await import("../src/rounds/lifecycle.integration.test.ts");
+if (process.env.RUN_DB_INTEGRATION === "true") {
+  await import("../src/rounds/lifecycle.integration.test.ts");
+  await import("../src/auth/verification.integration.test.ts");
+}

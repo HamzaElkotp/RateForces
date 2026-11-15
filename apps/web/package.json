@@ -2,7 +2,22 @@
   "name": "@rateforces/web",
   "private": true,
   "type": "module",
-  "scripts": { "dev": "vite", "build": "tsc -b && vite build", "lint": "tsc --noEmit -p tsconfig.app.json" },
-  "dependencies": { "@tanstack/react-query": "^5.66.9", "react": "^19.0.0", "react-dom": "^19.0.0", "react-router-dom": "^7.3.0" },
-  "devDependencies": { "@types/react": "^19.0.10", "@types/react-dom": "^19.0.4", "@vitejs/plugin-react": "^4.3.4", "vite": "^6.2.2" }
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "tsc --noEmit -p tsconfig.app.json"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.66.9",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.9.3",
+    "vite": "^6.2.2"
+  }
 }

@@ -39,8 +39,8 @@ Use Neon branch backups/restore points for database recovery. Keep at least one 
 | `WEB_ORIGIN` | Allowed browser origin for credentialed API requests |
 | `CODEFORCES_API_BASE` | Codeforces API base URL |
 | `CODEFORCES_REQUEST_INTERVAL_MS` | Central Codeforces request spacing |
-| `VERIFICATION_CONTEST_ID` | Configured CE challenge problem contest ID |
-| `VERIFICATION_PROBLEM_INDEX` | Configured CE challenge problem index |
+| `VERIFICATION_CONTEST_ID` | CE challenge problem contest ID (default `1`) |
+| `VERIFICATION_PROBLEM_INDEX` | CE challenge problem index (default `A`) |
 | `SESSION_SECRET` | Secret reserved for secure session handling |
 
 ## Repository layout

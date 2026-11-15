@@ -11,8 +11,8 @@ const envSchema = z.object({
   WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
   CODEFORCES_API_BASE: z.string().url().default("https://codeforces.com/api"),
   CODEFORCES_REQUEST_INTERVAL_MS: z.coerce.number().int().positive().default(2100),
-  VERIFICATION_CONTEST_ID: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().int().positive().optional()),
-  VERIFICATION_PROBLEM_INDEX: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).optional()),
+  VERIFICATION_CONTEST_ID: z.preprocess((value) => value === "" ? undefined : value, z.coerce.number().int().positive().default(1)),
+  VERIFICATION_PROBLEM_INDEX: z.preprocess((value) => value === "" ? undefined : value, z.string().min(1).default("A")),
   SESSION_SECRET: z.string().min(32),
 });
 

@@ -8,6 +8,7 @@
     "start": "node dist/server.js",
     "lint": "tsc --noEmit -p tsconfig.json",
     "test": "node --import tsx --test scripts/test-runner.mjs",
+    "test:integration": "node scripts/test-integration.mjs",
     "db:generate": "node scripts/prisma.mjs generate",
     "db:migrate": "node scripts/prisma.mjs migrate dev",
     "db:deploy": "node scripts/prisma.mjs migrate deploy",

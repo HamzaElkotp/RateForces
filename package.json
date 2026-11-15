@@ -11,6 +11,7 @@
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm --workspace @rateforces/api run test",
+    "test:integration": "npm --workspace @rateforces/api run test:integration",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "npm --workspace @rateforces/api run db:generate",

@@ -11,5 +11,15 @@ services:
     volumes:
       - rateforces-postgres:/var/lib/postgresql/data
 
+  test-postgres:
+    profiles: ["test"]
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: rateforces_test
+      POSTGRES_PASSWORD: rateforces_test
+      POSTGRES_DB: rateforces_test
+    ports:
+      - "55432:5432"
+
 volumes:
   rateforces-postgres:

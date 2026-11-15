@@ -26,6 +26,8 @@ Node.js 20 or newer and npm 10 or newer are required. Docker Compose remains ava
 
 Run the deterministic unit suite with `npm test` before committing changes.
 
+For database-backed lifecycle tests, copy `.env.test.example` to `.env.test`, start the isolated PostgreSQL service with `docker compose --profile test up -d test-postgres`, then run `npm run test:integration`. The runner applies migrations to `TEST_DATABASE_URL` and refuses to target the main `DATABASE_URL`.
+
 The web app runs at <http://localhost:5173>, and the API health endpoint is <http://localhost:3001/api/health>. Vite proxies `/api` requests to the API.
 
 For a containerized production deployment, configure `.env`, apply committed migrations with `npm run db:deploy`, then build and start the API, worker, and web containers using `docker compose -f docker-compose.app.yml up --build -d`. The web container serves the SPA and proxies `/api` to Express. The API and worker are separate processes. Keep database credentials server-side and use a Neon pooled URL for runtime plus its direct URL for migrations.

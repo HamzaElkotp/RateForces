@@ -34,6 +34,8 @@ The web app runs at <http://localhost:5173>, and the API health endpoint is <htt
 
 For a containerized production deployment, configure `.env`, apply committed migrations with `npm run db:deploy`, then build and start the API, worker, and web containers using `docker compose -f docker-compose.app.yml up --build -d`. The web container serves the SPA and proxies `/api` to Express. The API and worker are separate processes. Keep database credentials server-side and use a Neon pooled URL for runtime plus its direct URL for migrations.
 
+For a Vercel web deployment, create a second project from this repository with Root Directory `apps/web`. Its `vercel.json` proxies `/api/*` requests to the `rateforces-api` deployment and routes SPA paths to `index.html`. Set the API project's `WEB_ORIGIN` to the deployed web origin. Preview web deployments currently use the production API, so don't use previews for data-changing tests until a separate preview API/database is configured. The worker still needs a separate persistent runtime; Vercel's API project does not run it.
+
 ### Neon recovery procedure
 
 Set a point-in-time restore window in Neon that matches the recovery period you need, and review its storage cost. Before launch, rehearse recovery against a disposable branch. Neon can restore a branch from a timestamp or WAL position; see its [point-in-time restore guide](https://neon.com/blog/announcing-point-in-time-restore).

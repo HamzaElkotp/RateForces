@@ -43,7 +43,7 @@ function LinkAccountPage({ theme, setTheme }: { theme: string; setTheme: (value:
     let cancelled = false;
     const poll = async () => {
       try {
-        const response = await fetch(`/api/v1/auth/verification/${challenge.challengeId}`, { credentials: "include" });
+        const response = await fetch(`/api/v1/auth/verification/${challenge.challengeId}`, { credentials: "include", cache: "no-store" });
         const payload = await response.json();
         if (!cancelled && payload.data?.status === "VERIFIED") navigate("/dashboard");
         else if (!cancelled && payload.data?.status === "EXPIRED") setMessage("Challenge expired. Start a new verification to try again.");

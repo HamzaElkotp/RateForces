@@ -42,9 +42,7 @@ export async function checkVerification(challengeId: string) {
   const proof = submissions.find((submission) => submission.id > challenge.baselineSubmissionId
     && submission.problem.contestId === challenge.targetContestId
     && submission.problem.index === challenge.targetProblemIndex
-    && submission.verdict === "COMPILATION_ERROR"
-    && submission.creationTimeSeconds * 1000 >= challenge.issuedAt.getTime()
-    && submission.creationTimeSeconds * 1000 <= challenge.expiresAt.getTime());
+    && submission.verdict === "COMPILATION_ERROR");
   if (!proof) return { status: "PENDING" as const };
 
   const profile = await codeforces.getUser(challenge.codeforcesHandle);

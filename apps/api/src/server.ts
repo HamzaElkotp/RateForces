@@ -50,6 +50,7 @@ app.post("/api/v1/auth/verification", async (request, response, next) => {
 });
 
 app.get("/api/v1/auth/verification/:challengeId", async (request, response, next) => {
+  response.setHeader("Cache-Control", "no-store");
   const params = z.object({ challengeId: z.string().uuid() }).safeParse(request.params);
   if (!params.success) { response.status(400).json({ error: { code: "INVALID_CHALLENGE", message: "Invalid challenge ID." } }); return; }
   try {

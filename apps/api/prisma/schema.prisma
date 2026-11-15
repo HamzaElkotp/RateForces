@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RoundStatus {
+  LOBBY
+  RUNNING
+  COMPLETED
+}
+
+enum YearMode {
+  SELECTED
+  RANDOM
+}
+
+enum TagMatchMode {
+  ALL
+  ANY
+}
+
+model Owner {
+  id                  String                @id @default(uuid()) @db.Uuid
+  codeforcesHandle    String                @unique @map("codeforces_handle")
+  verifiedAt          DateTime              @map("verified_at") @db.Timestamptz(3)
+  sessions            OwnerSession[]
+  rounds              Round[]
+  solvedProblems      UserSolvedProblem[]
+  syncCheckpoint      UserSyncCheckpoint?
+  verificationChallenges VerificationChallenge[]
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("owners")
+}
+
+model OwnerSession {
+  id        String    @id @default(uuid()) @db.Uuid
+  ownerId   String    @map("owner_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  owner     Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, expiresAt])
+  @@map("owner_sessions")
+}
+
+model VerificationChallenge {
+  id             String    @id @default(uuid()) @db.Uuid
+  ownerId        String?   @map("owner_id") @db.Uuid
+  codeforcesHandle String  @map("codeforces_handle")
+  baselineSubmissionId Int  @map("baseline_submission_id")
+  issuedAt       DateTime  @map("issued_at") @db.Timestamptz(3)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
+  consumedAt     DateTime? @map("consumed_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  owner          Owner?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([codeforcesHandle, expiresAt])
+  @@map("verification_challenges")
+}
+
+model Problem {
+  id                  String        @id @default(uuid()) @db.Uuid
+  contestId           Int           @map("contest_id")
+  problemIndex        String        @map("problem_index")
+  name                String
+  rating              Int?
+  tags                String[]      @default([])
+  year                Int?
+  contestStartTime    DateTime?     @map("contest_start_time") @db.Timestamptz(3)
+  contestName         String?       @map("contest_name")
+  solvedCount         Int?          @map("solved_count")
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  roundProblems       RoundProblem[]
+  solvedByUsers       UserSolvedProblem[]
+
+  @@unique([contestId, problemIndex])
+  @@index([rating, year])
+  @@map("problems")
+}
+
+model UserSolvedProblem {
+  ownerId        String   @map("owner_id") @db.Uuid
+  problemId      String   @map("problem_id") @db.Uuid
+  acceptedAt     DateTime @map("accepted_at") @db.Timestamptz(3)
+  submissionId   Int      @map("submission_id")
+  owner          Owner    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  problem        Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@id([ownerId, problemId])
+  @@index([ownerId])
+  @@map("user_solved_problems")
+}
+
+model UserSyncCheckpoint {
+  ownerId                String    @id @map("owner_id") @db.Uuid
+  lastSubmissionId       Int?      @map("last_submission_id")
+  historyImportComplete  Boolean   @default(false) @map("history_import_complete")
+  historyImportStartedAt DateTime? @map("history_import_started_at") @db.Timestamptz(3)
+  lastSyncedAt           DateTime? @map("last_synced_at") @db.Timestamptz(3)
+  owner                  Owner     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@map("user_sync_checkpoints")
+}
+
+model Round {
+  id              String          @id @default(uuid()) @db.Uuid
+  ownerId         String          @map("owner_id") @db.Uuid
+  status          RoundStatus     @default(LOBBY)
+  targetRating    Int             @map("target_rating")
+  yearMode        YearMode        @map("year_mode")
+  selectedYears   Int[]           @default([]) @map("selected_years")
+  durationMinutes Int             @map("duration_minutes")
+  problemCount    Int             @map("problem_count")
+  selectedTags    String[]        @default([]) @map("selected_tags")
+  tagMatchMode    TagMatchMode?   @map("tag_match_mode")
+  includeSolved   Boolean         @map("include_solved")
+  startedAt       DateTime?       @map("started_at") @db.Timestamptz(3)
+  endsAt          DateTime?       @map("ends_at") @db.Timestamptz(3)
+  completedAt     DateTime?       @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  owner           Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  problems        RoundProblem[]
+
+  @@index([ownerId, createdAt])
+  @@index([status, endsAt])
+  @@map("rounds")
+}
+
+model RoundProblem {
+  id                    String        @id @default(uuid()) @db.Uuid
+  roundId               String        @map("round_id") @db.Uuid
+  problemId             String        @map("problem_id") @db.Uuid
+  contestId             Int           @map("contest_id")
+  problemIndex          String        @map("problem_index")
+  name                  String
+  rating                Int?
+  tags                  String[]      @default([])
+  workSessions          WorkSession[]
+  attempts              RoundAttempt[]
+  acceptedAt            DateTime?     @map("accepted_at") @db.Timestamptz(3)
+  acceptedSubmissionId  Int?          @map("accepted_submission_id")
+  acceptedSubmissionUrl String?       @map("accepted_submission_url")
+  round                 Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  problem               Problem       @relation(fields: [problemId], references: [id], onDelete: Restrict)
+
+  @@unique([roundId, problemId])
+  @@index([roundId])
+  @@map("round_problems")
+}
+
+model WorkSession {
+  id             String       @id @default(uuid()) @db.Uuid
+  roundProblemId String       @map("round_problem_id") @db.Uuid
+  startedAt      DateTime     @map("started_at") @db.Timestamptz(3)
+  endedAt        DateTime?    @map("ended_at") @db.Timestamptz(3)
+  roundProblem   RoundProblem @relation(fields: [roundProblemId], references: [id], onDelete: Cascade)
+
+  @@index([roundProblemId, startedAt])
+  @@map("work_sessions")
+}
+
+model RoundAttempt {
+  id             String       @id @default(uuid()) @db.Uuid
+  roundProblemId String       @map("round_problem_id") @db.Uuid
+  submissionId   Int          @unique @map("submission_id")
+  verdict        String
+  submittedAt    DateTime     @map("submitted_at") @db.Timestamptz(3)
+  submissionUrl  String       @map("submission_url")
+  roundProblem   RoundProblem @relation(fields: [roundProblemId], references: [id], onDelete: Cascade)
+
+  @@index([roundProblemId, submittedAt])
+  @@map("round_attempts")
+}

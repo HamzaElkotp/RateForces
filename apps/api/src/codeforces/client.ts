@@ -24,7 +24,7 @@ async function request<T>(method: string): Promise<T> {
     const startedAt = Date.now();
     await waitForRateLimit();
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(7734501)`;
+      await tx.$executeRaw`DO $$ BEGIN PERFORM pg_advisory_xact_lock(7734501); END $$`;
       const previous = await tx.externalRateLimit.findUnique({ where: { key: "codeforces" } });
       const delay = previous ? config.CODEFORCES_REQUEST_INTERVAL_MS - (Date.now() - previous.lastStartedAt.getTime()) : 0;
       if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));

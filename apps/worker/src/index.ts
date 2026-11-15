@@ -1,5 +1,9 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import { resolve } from "node:path";
 import { spawn } from "node:child_process";
+
+dotenv.config({ path: resolve(process.cwd(), "../../.env") });
+dotenv.config();
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const CHALLENGE_POLL = 15 * 1000;

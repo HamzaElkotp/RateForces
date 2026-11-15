@@ -13,6 +13,12 @@ CREATE TYPE "TagMatchMode" AS ENUM ('ALL', 'ANY');
 -- CreateEnum
 CREATE TYPE "ChallengeStatus" AS ENUM ('PENDING', 'VERIFIED', 'EXPIRED', 'CANCELLED');
 
+-- CreateEnum
+CREATE TYPE "RoundProblemStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'PAUSED', 'SOLVED', 'EXPIRED');
+
+-- CreateEnum
+CREATE TYPE "WorkStopReason" AS ENUM ('MANUAL', 'ACCEPTED', 'ROUND_ENDED');
+
 -- CreateTable
 CREATE TABLE "owners" (
     "id" UUID NOT NULL,
@@ -127,6 +133,12 @@ CREATE TABLE "round_problems" (
     "name" TEXT NOT NULL,
     "rating" INTEGER,
     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "order_index" INTEGER NOT NULL,
+    "status" "RoundProblemStatus" NOT NULL DEFAULT 'PENDING',
+    "first_started_at" TIMESTAMPTZ(3),
+    "attempt_count" INTEGER NOT NULL DEFAULT 0,
+    "failed_attempt_count" INTEGER NOT NULL DEFAULT 0,
+    "active_work_seconds" INTEGER NOT NULL DEFAULT 0,
     "accepted_at" TIMESTAMPTZ(3),
     "accepted_submission_id" INTEGER,
     "accepted_submission_url" TEXT,
@@ -140,6 +152,7 @@ CREATE TABLE "work_sessions" (
     "round_problem_id" UUID NOT NULL,
     "started_at" TIMESTAMPTZ(3) NOT NULL,
     "ended_at" TIMESTAMPTZ(3),
+    "stop_reason" "WorkStopReason",
 
     CONSTRAINT "work_sessions_pkey" PRIMARY KEY ("id")
 );
@@ -149,9 +162,11 @@ CREATE TABLE "round_attempts" (
     "id" UUID NOT NULL,
     "round_problem_id" UUID NOT NULL,
     "submission_id" INTEGER NOT NULL,
-    "verdict" TEXT NOT NULL,
+    "verdict" TEXT,
     "submitted_at" TIMESTAMPTZ(3) NOT NULL,
     "submission_url" TEXT NOT NULL,
+    "first_seen_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_seen_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "round_attempts_pkey" PRIMARY KEY ("id")
 );
@@ -184,19 +199,22 @@ CREATE INDEX "rounds_owner_id_created_at_idx" ON "rounds"("owner_id", "created_a
 CREATE INDEX "rounds_status_ends_at_idx" ON "rounds"("status", "ends_at");
 
 -- CreateIndex
-CREATE INDEX "round_problems_round_id_idx" ON "round_problems"("round_id");
+CREATE INDEX "round_problems_round_id_status_idx" ON "round_problems"("round_id", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "round_problems_round_id_problem_id_key" ON "round_problems"("round_id", "problem_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "round_problems_round_id_order_index_key" ON "round_problems"("round_id", "order_index");
+
+-- CreateIndex
 CREATE INDEX "work_sessions_round_problem_id_started_at_idx" ON "work_sessions"("round_problem_id", "started_at");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "round_attempts_submission_id_key" ON "round_attempts"("submission_id");
+CREATE INDEX "round_attempts_round_problem_id_submitted_at_idx" ON "round_attempts"("round_problem_id", "submitted_at");
 
 -- CreateIndex
-CREATE INDEX "round_attempts_round_problem_id_submitted_at_idx" ON "round_attempts"("round_problem_id", "submitted_at");
+CREATE UNIQUE INDEX "round_attempts_round_problem_id_submission_id_key" ON "round_attempts"("round_problem_id", "submission_id");
 
 -- AddForeignKey
 ALTER TABLE "owner_sessions" ADD CONSTRAINT "owner_sessions_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "owners"("id") ON DELETE CASCADE ON UPDATE CASCADE;

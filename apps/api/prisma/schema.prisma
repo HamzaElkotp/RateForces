@@ -31,6 +31,20 @@ enum ChallengeStatus {
   CANCELLED
 }
 
+enum RoundProblemStatus {
+  PENDING
+  IN_PROGRESS
+  PAUSED
+  SOLVED
+  EXPIRED
+}
+
+enum WorkStopReason {
+  MANUAL
+  ACCEPTED
+  ROUND_ENDED
+}
+
 model Owner {
   id                  String                @id @default(uuid()) @db.Uuid
   codeforcesHandle    String                @unique @map("codeforces_handle")
@@ -159,6 +173,12 @@ model RoundProblem {
   name                  String
   rating                Int?
   tags                  String[]      @default([])
+  orderIndex            Int           @map("order_index")
+  status                RoundProblemStatus @default(PENDING)
+  firstStartedAt        DateTime?     @map("first_started_at") @db.Timestamptz(3)
+  attemptCount          Int           @default(0) @map("attempt_count")
+  failedAttemptCount    Int           @default(0) @map("failed_attempt_count")
+  activeWorkSeconds     Int           @default(0) @map("active_work_seconds")
   workSessions          WorkSession[]
   attempts              RoundAttempt[]
   acceptedAt            DateTime?     @map("accepted_at") @db.Timestamptz(3)
@@ -168,7 +188,8 @@ model RoundProblem {
   problem               Problem       @relation(fields: [problemId], references: [id], onDelete: Restrict)
 
   @@unique([roundId, problemId])
-  @@index([roundId])
+  @@unique([roundId, orderIndex])
+  @@index([roundId, status])
   @@map("round_problems")
 }
 
@@ -177,6 +198,7 @@ model WorkSession {
   roundProblemId String       @map("round_problem_id") @db.Uuid
   startedAt      DateTime     @map("started_at") @db.Timestamptz(3)
   endedAt        DateTime?    @map("ended_at") @db.Timestamptz(3)
+  stopReason     WorkStopReason? @map("stop_reason")
   roundProblem   RoundProblem @relation(fields: [roundProblemId], references: [id], onDelete: Cascade)
 
   @@index([roundProblemId, startedAt])
@@ -186,12 +208,15 @@ model WorkSession {
 model RoundAttempt {
   id             String       @id @default(uuid()) @db.Uuid
   roundProblemId String       @map("round_problem_id") @db.Uuid
-  submissionId   Int          @unique @map("submission_id")
-  verdict        String
+  submissionId   Int          @map("submission_id")
+  verdict        String?
   submittedAt    DateTime     @map("submitted_at") @db.Timestamptz(3)
   submissionUrl  String       @map("submission_url")
+  firstSeenAt    DateTime     @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  lastSeenAt     DateTime     @updatedAt @map("last_seen_at") @db.Timestamptz(3)
   roundProblem   RoundProblem @relation(fields: [roundProblemId], references: [id], onDelete: Cascade)
 
+  @@unique([roundProblemId, submissionId])
   @@index([roundProblemId, submittedAt])
   @@map("round_attempts")
 }

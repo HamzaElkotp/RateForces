@@ -66,8 +66,9 @@ export async function createRound(ownerId: string, input: RoundConfig) {
       selectedTags: input.selectedTags,
       tagMatchMode: input.selectedTags.length ? input.tagMatchMode : null,
       includeSolved: input.includeSolved,
-      problems: { create: selected.map((problem) => ({
+      problems: { create: selected.map((problem, orderIndex) => ({
         problemId: problem.id,
+        orderIndex,
         contestId: problem.contestId,
         problemIndex: problem.problemIndex,
         name: problem.name,
@@ -75,6 +76,6 @@ export async function createRound(ownerId: string, input: RoundConfig) {
         tags: problem.tags,
       })) },
     },
-    include: { problems: { orderBy: [{ contestId: "asc" }, { problemIndex: "asc" }] } },
+    include: { problems: { orderBy: [{ contestId: "asc" }, { problemIndex: "asc" }], include: { attempts: true, workSessions: true } } },
   }));
 }

@@ -6,6 +6,7 @@ import { prisma } from "./db.js";
 import { getVerificationStatus, hashToken, issueChallengeSession, sessionCookieName, setSessionCookie, startVerification } from "./auth/service.js";
 import { requireOwner } from "./auth/middleware.js";
 import { createRound, previewRound, roundConfigSchema } from "./rounds/selection.js";
+import { startRound, startWork, stopWork } from "./rounds/lifecycle.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -53,8 +54,8 @@ app.get("/api/v1/me", requireOwner, async (request, response, next) => {
   } catch (error) { next(error); }
 });
 
-function roundDto(round: { id: string; status: string; targetRating: number; durationMinutes: number; problemCount: number; startedAt: Date | null; endsAt: Date | null; createdAt: Date; problems: { id: string; contestId: number; problemIndex: string; name: string; rating: number | null; tags: string[] }[] }) {
-  return { id: round.id, status: round.status, targetRating: round.targetRating, durationMinutes: round.durationMinutes, problemCount: round.problemCount, startedAt: round.startedAt?.toISOString() ?? null, endsAt: round.endsAt?.toISOString() ?? null, createdAt: round.createdAt.toISOString(), problems: round.problems.map((problem) => ({ id: problem.id, contestId: problem.contestId, problemIndex: problem.problemIndex, name: problem.name, rating: problem.rating, tags: problem.tags, url: `https://codeforces.com/contest/${problem.contestId}/problem/${problem.problemIndex}` })) };
+function roundDto(round: { id: string; status: string; targetRating: number; durationMinutes: number; problemCount: number; startedAt: Date | null; endsAt: Date | null; createdAt: Date; problems: { id: string; contestId: number; problemIndex: string; name: string; rating: number | null; tags: string[]; orderIndex: number; status: string; firstStartedAt: Date | null; acceptedAt: Date | null; acceptedSubmissionUrl: string | null; attemptCount: number; failedAttemptCount: number; activeWorkSeconds: number; workSessions: { startedAt: Date; endedAt: Date | null }[]; attempts: { verdict: string | null; submittedAt: Date; submissionUrl: string }[] }[] }) {
+  return { id: round.id, status: round.status, targetRating: round.targetRating, durationMinutes: round.durationMinutes, problemCount: round.problemCount, startedAt: round.startedAt?.toISOString() ?? null, endsAt: round.endsAt?.toISOString() ?? null, createdAt: round.createdAt.toISOString(), problems: [...round.problems].sort((a, b) => a.orderIndex - b.orderIndex).map((problem) => ({ id: problem.id, contestId: problem.contestId, problemIndex: problem.problemIndex, name: problem.name, rating: problem.rating, tags: problem.tags, status: problem.status, firstStartedAt: problem.firstStartedAt?.toISOString() ?? null, acceptedAt: problem.acceptedAt?.toISOString() ?? null, acceptedSubmissionUrl: problem.acceptedSubmissionUrl, attemptCount: problem.attemptCount, failedAttemptCount: problem.failedAttemptCount, activeWorkSeconds: problem.activeWorkSeconds, workSessions: problem.workSessions.map((session) => ({ startedAt: session.startedAt.toISOString(), endedAt: session.endedAt?.toISOString() ?? null })), attempts: problem.attempts.map((attempt) => ({ verdict: attempt.verdict, submittedAt: attempt.submittedAt.toISOString(), submissionUrl: attempt.submissionUrl })), url: `https://codeforces.com/contest/${problem.contestId}/problem/${problem.problemIndex}` })) };
 }
 
 function parseRoundQuery(query: express.Request["query"]) {
@@ -87,7 +88,7 @@ app.post("/api/v1/rounds", requireOwner, async (request, response, next) => {
 
 app.get("/api/v1/rounds", requireOwner, async (request, response, next) => {
   try {
-    const rounds = await prisma.round.findMany({ where: { ownerId: request.owner!.id }, orderBy: { createdAt: "desc" }, take: 50, include: { problems: true } });
+    const rounds = await prisma.round.findMany({ where: { ownerId: request.owner!.id }, orderBy: { createdAt: "desc" }, take: 50, include: { problems: { include: { attempts: true, workSessions: true } } } });
     response.json({ data: rounds.map(roundDto), error: null });
   } catch (error) { next(error); }
 });
@@ -96,11 +97,31 @@ app.get("/api/v1/rounds/:roundId", requireOwner, async (request, response, next)
   const parsed = z.object({ roundId: z.string().uuid() }).safeParse(request.params);
   if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_ROUND", message: "Invalid round ID." } }); return; }
   try {
-    const round = await prisma.round.findFirst({ where: { id: parsed.data.roundId, ownerId: request.owner!.id }, include: { problems: true } });
+    const round = await prisma.round.findFirst({ where: { id: parsed.data.roundId, ownerId: request.owner!.id }, include: { problems: { include: { attempts: { orderBy: { submittedAt: "asc" } }, workSessions: { orderBy: { startedAt: "asc" } } } } } });
     if (!round) { response.status(404).json({ error: { code: "NOT_FOUND", message: "Round not found." } }); return; }
-    response.json({ data: roundDto(round), error: null });
+    const checkpoint = await prisma.userSyncCheckpoint.findUnique({ where: { ownerId: request.owner!.id }, select: { lastSyncedAt: true } });
+    response.json({ data: { ...roundDto(round), lastSyncedAt: checkpoint?.lastSyncedAt?.toISOString() ?? null }, error: null });
   } catch (error) { next(error); }
 });
+
+app.post("/api/v1/rounds/:roundId/start", requireOwner, async (request, response, next) => {
+  const parsed = z.object({ roundId: z.string().uuid() }).safeParse(request.params);
+  if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_ROUND", message: "Invalid round ID." } }); return; }
+  try { response.json({ data: await startRound(parsed.data.roundId, request.owner!.id), error: null }); } catch (error) { next(error); }
+});
+
+for (const action of ["start", "stop"] as const) {
+  app.post(`/api/v1/rounds/:roundId/problems/:problemId/${action}`, requireOwner, async (request, response, next) => {
+    const parsed = z.object({ roundId: z.string().uuid(), problemId: z.string().uuid() }).safeParse(request.params);
+    if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_PROBLEM", message: "Invalid round problem." } }); return; }
+    try {
+      const result = action === "start"
+        ? await startWork(parsed.data.roundId, parsed.data.problemId, request.owner!.id)
+        : await stopWork(parsed.data.roundId, parsed.data.problemId, request.owner!.id);
+      response.json({ data: result, error: null });
+    } catch (error) { next(error); }
+  });
+}
 
 app.post("/api/v1/auth/logout", requireOwner, async (request, response, next) => {
   try {

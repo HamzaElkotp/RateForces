@@ -3,9 +3,10 @@ import { spawn } from "node:child_process";
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
 const CHALLENGE_POLL = 15 * 1000;
+const ROUND_SYNC = 20 * 1000;
 let activeJob = false;
 
-function runApiJob(script: "auth:poll" | "auth:sync-history" | "crawl:problemset"): void {
+function runApiJob(script: "auth:poll" | "auth:sync-history" | "rounds:sync" | "crawl:problemset"): void {
   if (activeJob) return;
   activeJob = true;
   console.info(`Starting scheduled ${script} job.`);
@@ -17,5 +18,6 @@ function runApiJob(script: "auth:poll" | "auth:sync-history" | "crawl:problemset
 runApiJob("auth:poll");
 setInterval(() => runApiJob("auth:poll"), CHALLENGE_POLL);
 setInterval(() => runApiJob("auth:sync-history"), 60 * 1000);
+setInterval(() => runApiJob("rounds:sync"), ROUND_SYNC);
 setTimeout(() => runApiJob("crawl:problemset"), WEEK);
 console.info("RateForces worker started; challenge polling and weekly problemset refresh are scheduled.");

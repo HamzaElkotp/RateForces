@@ -7,7 +7,7 @@ import { prisma } from "./db.js";
 import { getVerificationStatus, hashToken, issueChallengeSession, sessionCookieName, setSessionCookie, startVerification } from "./auth/service.js";
 import { requireOwner } from "./auth/middleware.js";
 import { createRound, previewRound, roundConfigSchema } from "./rounds/selection.js";
-import { startRound, startWork, stopWork } from "./rounds/lifecycle.js";
+import { cancelLobbyRound, startRound, startWork, stopWork } from "./rounds/lifecycle.js";
 import { getRoundResults } from "./rounds/results.js";
 
 const app = express();
@@ -134,6 +134,12 @@ app.post("/api/v1/rounds/:roundId/start", requireOwner, async (request, response
   const parsed = z.object({ roundId: z.string().uuid() }).safeParse(request.params);
   if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_ROUND", message: "Invalid round ID." } }); return; }
   try { response.json({ data: await startRound(parsed.data.roundId, request.owner!.id), error: null }); } catch (error) { next(error); }
+});
+
+app.delete("/api/v1/rounds/:roundId", requireOwner, async (request, response, next) => {
+  const parsed = z.object({ roundId: z.string().uuid() }).safeParse(request.params);
+  if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_ROUND", message: "Invalid round ID." } }); return; }
+  try { response.json({ data: await cancelLobbyRound(parsed.data.roundId, request.owner!.id), error: null }); } catch (error) { next(error); }
 });
 
 for (const action of ["start", "stop"] as const) {

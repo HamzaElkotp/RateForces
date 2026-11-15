@@ -12,6 +12,7 @@ enum RoundStatus {
   LOBBY
   RUNNING
   COMPLETED
+  CANCELLED
 }
 
 enum YearMode {

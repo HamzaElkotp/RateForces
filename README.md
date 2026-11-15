@@ -4,7 +4,7 @@ RateForces is a client-rendered Codeforces practice-round companion. The browser
 
 ## Current implementation
 
-Phase 0 establishes the React/Vite SPA, Express API, separate worker process, PostgreSQL/Prisma data model, environment validation, shared workspace scripts, and local database service. Later roadmap phases add Codeforces integration and product workflows in order.
+The app includes Codeforces problemset ingestion, verified account linking, solved-history sync, configurable practice rounds, lobby cancellation, timed sessions, submission tracking, results, and theme support. The API, web app, and worker run as separate services over PostgreSQL/Prisma. See the implementation roadmap in the spec for remaining release-readiness work.
 
 ## Database setup (Neon)
 

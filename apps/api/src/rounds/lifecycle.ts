@@ -30,6 +30,15 @@ export async function startRound(roundId: string, ownerId: string) {
   });
 }
 
+export async function cancelLobbyRound(roundId: string, ownerId: string) {
+  return prisma.$transaction(async (tx) => {
+    const round = await lockRound(tx, roundId, ownerId);
+    if (round.status !== "LOBBY") throw Object.assign(new Error("Only a lobby round can be cancelled."), { status: 409 });
+    await tx.round.update({ where: { id: roundId }, data: { status: "CANCELLED" } });
+    return { id: roundId, status: "CANCELLED" as const };
+  });
+}
+
 export async function startWork(roundId: string, roundProblemId: string, ownerId: string) {
   return prisma.$transaction(async (tx) => {
     const round = await lockRound(tx, roundId, ownerId);

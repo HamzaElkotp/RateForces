@@ -5,6 +5,7 @@ import { config } from "./config.js";
 import { prisma } from "./db.js";
 import { getVerificationStatus, hashToken, issueChallengeSession, sessionCookieName, setSessionCookie, startVerification } from "./auth/service.js";
 import { requireOwner } from "./auth/middleware.js";
+import { createRound, previewRound, roundConfigSchema } from "./rounds/selection.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -49,6 +50,55 @@ app.get("/api/v1/me", requireOwner, async (request, response, next) => {
   try {
     const checkpoint = await prisma.userSyncCheckpoint.findUnique({ where: { ownerId: request.owner!.id } });
     response.json({ data: { ...request.owner, historySyncComplete: checkpoint?.historyImportComplete ?? false, historySyncCursor: checkpoint?.historyImportCursor ?? 1, lastSyncedAt: checkpoint?.lastSyncedAt?.toISOString() ?? null }, error: null });
+  } catch (error) { next(error); }
+});
+
+function roundDto(round: { id: string; status: string; targetRating: number; durationMinutes: number; problemCount: number; startedAt: Date | null; endsAt: Date | null; createdAt: Date; problems: { id: string; contestId: number; problemIndex: string; name: string; rating: number | null; tags: string[] }[] }) {
+  return { id: round.id, status: round.status, targetRating: round.targetRating, durationMinutes: round.durationMinutes, problemCount: round.problemCount, startedAt: round.startedAt?.toISOString() ?? null, endsAt: round.endsAt?.toISOString() ?? null, createdAt: round.createdAt.toISOString(), problems: round.problems.map((problem) => ({ id: problem.id, contestId: problem.contestId, problemIndex: problem.problemIndex, name: problem.name, rating: problem.rating, tags: problem.tags, url: `https://codeforces.com/contest/${problem.contestId}/problem/${problem.problemIndex}` })) };
+}
+
+function parseRoundQuery(query: express.Request["query"]) {
+  return roundConfigSchema.safeParse({
+    targetRating: Number(query.targetRating),
+    yearMode: query.yearMode,
+    selectedYears: typeof query.selectedYears === "string" ? query.selectedYears.split(",").filter(Boolean).map(Number) : [],
+    durationMinutes: Number(query.durationMinutes),
+    problemCount: query.problemCount === undefined ? 5 : Number(query.problemCount),
+    selectedTags: typeof query.selectedTags === "string" ? query.selectedTags.split(",").filter(Boolean) : [],
+    tagMatchMode: query.tagMatchMode ?? "ANY",
+    includeSolved: query.includeSolved === undefined ? true : query.includeSolved === "true",
+  });
+}
+
+app.get("/api/v1/problemset/preview", requireOwner, async (request, response, next) => {
+  const parsed = parseRoundQuery(request.query);
+  if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_CONFIG", message: parsed.error.issues[0]?.message ?? "Invalid round configuration" } }); return; }
+  try { response.json({ data: await previewRound(request.owner!.id, parsed.data), error: null }); } catch (error) { next(error); }
+});
+
+app.post("/api/v1/rounds", requireOwner, async (request, response, next) => {
+  const parsed = roundConfigSchema.safeParse(request.body);
+  if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_CONFIG", message: parsed.error.issues[0]?.message ?? "Invalid round configuration" } }); return; }
+  try {
+    const round = await createRound(request.owner!.id, parsed.data);
+    response.status(201).json({ data: roundDto(round), error: null });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/v1/rounds", requireOwner, async (request, response, next) => {
+  try {
+    const rounds = await prisma.round.findMany({ where: { ownerId: request.owner!.id }, orderBy: { createdAt: "desc" }, take: 50, include: { problems: true } });
+    response.json({ data: rounds.map(roundDto), error: null });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/v1/rounds/:roundId", requireOwner, async (request, response, next) => {
+  const parsed = z.object({ roundId: z.string().uuid() }).safeParse(request.params);
+  if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_ROUND", message: "Invalid round ID." } }); return; }
+  try {
+    const round = await prisma.round.findFirst({ where: { id: parsed.data.roundId, ownerId: request.owner!.id }, include: { problems: true } });
+    if (!round) { response.status(404).json({ error: { code: "NOT_FOUND", message: "Round not found." } }); return; }
+    response.json({ data: roundDto(round), error: null });
   } catch (error) { next(error); }
 });
 

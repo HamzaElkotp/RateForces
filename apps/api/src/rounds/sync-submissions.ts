@@ -45,7 +45,20 @@ async function applySubmission(ownerId: string, submission: Awaited<ReturnType<t
 
 try {
   await finalizeExpiredRounds();
-  const owners = await prisma.owner.findMany({ where: { rounds: { some: { status: "RUNNING" } } }, select: { id: true, codeforcesHandle: true } });
+  const reconcileSince = new Date(Date.now() - RECONCILE_MS);
+  const owners = await prisma.owner.findMany({
+    where: {
+      rounds: {
+        some: {
+          OR: [
+            { status: "RUNNING" },
+            { status: "COMPLETED", completedAt: { gte: reconcileSince } },
+          ],
+        },
+      },
+    },
+    select: { id: true, codeforcesHandle: true },
+  });
   for (const owner of owners) {
     try {
       const submissions = await codeforces.getUserStatus(owner.codeforcesHandle, 1, 1000);

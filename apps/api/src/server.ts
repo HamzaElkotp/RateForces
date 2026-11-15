@@ -7,6 +7,7 @@ import { getVerificationStatus, hashToken, issueChallengeSession, sessionCookieN
 import { requireOwner } from "./auth/middleware.js";
 import { createRound, previewRound, roundConfigSchema } from "./rounds/selection.js";
 import { startRound, startWork, stopWork } from "./rounds/lifecycle.js";
+import { getRoundResults } from "./rounds/results.js";
 
 const app = express();
 app.disable("x-powered-by");
@@ -101,6 +102,16 @@ app.get("/api/v1/rounds/:roundId", requireOwner, async (request, response, next)
     if (!round) { response.status(404).json({ error: { code: "NOT_FOUND", message: "Round not found." } }); return; }
     const checkpoint = await prisma.userSyncCheckpoint.findUnique({ where: { ownerId: request.owner!.id }, select: { lastSyncedAt: true } });
     response.json({ data: { ...roundDto(round), lastSyncedAt: checkpoint?.lastSyncedAt?.toISOString() ?? null }, error: null });
+  } catch (error) { next(error); }
+});
+
+app.get("/api/v1/rounds/:roundId/results", requireOwner, async (request, response, next) => {
+  const parsed = z.object({ roundId: z.string().uuid() }).safeParse(request.params);
+  if (!parsed.success) { response.status(400).json({ error: { code: "INVALID_ROUND", message: "Invalid round ID." } }); return; }
+  try {
+    const results = await getRoundResults(parsed.data.roundId, request.owner!.id);
+    const checkpoint = await prisma.userSyncCheckpoint.findUnique({ where: { ownerId: request.owner!.id }, select: { lastSyncedAt: true } });
+    response.json({ data: { ...results, lastSyncedAt: checkpoint?.lastSyncedAt?.toISOString() ?? null, finalSyncPending: Date.now() < new Date(results.endsAt).getTime() + 30 * 60 * 1000 }, error: null });
   } catch (error) { next(error); }
 });
 
